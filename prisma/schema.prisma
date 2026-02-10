@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServerStatus {
+  NEW
+  INSTALLING
+  READY
+  ERROR
+}
+
+enum SecretType {
+  SSH_KEY
+  SSH_PASSWORD
+}
+
+enum JobLogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+model Secret {
+  id         String     @id @default(uuid()) @db.Uuid
+  type       SecretType
+  ciphertext String     @db.Text
+  createdAt  DateTime   @default(now())
+
+  servers Server[]
+}
+
+model Server {
+  id          String       @id @default(uuid()) @db.Uuid
+  host        String
+  sshUser     String
+  sshSecretId String       @db.Uuid
+  status      ServerStatus @default(NEW)
+  lastError   String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  sshSecret      Secret         @relation(fields: [sshSecretId], references: [id])
+  xrayInstances  XrayInstance[]
+  users          User[]
+
+  @@index([host])
+}
+
+model XrayInstance {
+  id                String   @id @default(uuid()) @db.Uuid
+  serverId          String   @db.Uuid
+  listenPort        Int
+  realityPrivateKey String
+  realityPublicKey  String
+  serverName        String
+  dest              String
+  shortIds          String[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  server Server @relation(fields: [serverId], references: [id])
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  serverId  String   @db.Uuid
+  name      String?
+  uuid      String   @db.Uuid @default(uuid())
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  server      Server       @relation(fields: [serverId], references: [id])
+  shareTokens ShareToken[]
+
+  @@index([serverId])
+}
+
+model ShareToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @db.Text @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([expiresAt])
+}
+
+model JobLog {
+  id      String      @id @default(uuid()) @db.Uuid
+  jobId   String
+  level   JobLogLevel
+  message String      @db.Text
+  ts      DateTime    @default(now())
+
+  @@index([jobId])
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actor      String
+  action     String
+  entityType String
+  entityId   String
+  meta       Json?    @db.JsonB
+  ts         DateTime @default(now())
+
+  @@index([entityId])
+  @@index([ts])
+}

@@ -1,0 +1,48 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+}
+
+main {
+  max-width: 680px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  margin-top: 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+button {
+  padding: 8px 12px;
+}
+
+pre {
+  border: 1px solid #ddd;
+  padding: 12px;
+  min-height: 90px;
+  white-space: pre-wrap;
+}
+
+#message {
+  min-height: 1.5em;
+}
+
+.note {
+  color: #444;
+  font-size: 0.9rem;
+}

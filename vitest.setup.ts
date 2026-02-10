@@ -1,0 +1,16 @@
+process.env.NODE_ENV ??= 'test';
+process.env.ROLE ??= 'api';
+process.env.HOST ??= '127.0.0.1';
+process.env.PORT ??= '3000';
+process.env.LOG_LEVEL ??= 'silent';
+process.env.ADMIN_API_KEYS ??= 'test-admin-key';
+process.env.CORS_ORIGINS ??= 'http://localhost:3000';
+process.env.SWAGGER_ENABLED ??= 'false';
+process.env.PROVISION_DRY_RUN ??= 'true';
+process.env.INSTALL_LOG_DIR ??= '.tmp/install-logs';
+process.env.XRAY_STORE_MODE ??= 'file';
+process.env.REDIS_URL ??= 'redis://127.0.0.1:6379';
+process.env.MASTER_KEY ??= Buffer.alloc(32).toString('base64');
+process.env.TOKEN_SALT ??= 'test-token-salt';
+process.env.DATABASE_URL ??=
+  'postgresql://postgres:postgres@localhost:5432/xray_control_plane_test?schema=public';

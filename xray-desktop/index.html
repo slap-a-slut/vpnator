@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xray-desktop</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <main>
+      <h1>xray-desktop</h1>
+      <p id="appVersion">Version: ...</p>
+
+      <label for="baseUrl">Base URL</label>
+      <input id="baseUrl" type="url" placeholder="https://control-plane.example.com" />
+
+      <label for="shareToken">Share Token</label>
+      <input id="shareToken" type="text" placeholder="token" />
+
+      <div class="actions">
+        <button id="importBtn" type="button">Import</button>
+        <button id="connectBtn" type="button">Connect</button>
+        <button id="disconnectBtn" type="button">Disconnect</button>
+      </div>
+
+      <section>
+        <h2>Status</h2>
+        <pre id="statusBox">Loading...</pre>
+      </section>
+
+      <button id="copyLogsPathBtn" type="button">Copy logs path</button>
+
+      <p id="message"></p>
+
+      <p class="note">
+        Proxy elevation is not implemented in desktop shell. Use CLI `agent proxy-on/off` when
+        needed; on macOS it may require `sudo`.
+      </p>
+    </main>
+  </body>
+</html>

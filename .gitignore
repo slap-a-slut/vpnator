@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*.local
+node_modules
+dist
+coverage
+.turbo
+.eslintcache
+.tmp/
+
+prisma/dev.db
+prisma/dev.db-journal

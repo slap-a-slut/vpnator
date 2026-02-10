@@ -1,0 +1,22 @@
+{
+  "name": "xray-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal Tauri shell for xray-client-agent",
+  "scripts": {
+    "dev:web": "vite",
+    "build:web": "vite build",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-deep-link": "^2.3.1",
+    "xray-client-agent": "file:../xray-client-agent"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}
