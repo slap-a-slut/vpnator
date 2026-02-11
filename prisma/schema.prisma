@@ -59,6 +59,7 @@ model XrayInstance {
   realityPublicKey  String
   serverName        String
   dest              String
+  fingerprint       String   @default("chrome")
   shortIds          String[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

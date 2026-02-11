@@ -66,6 +66,7 @@ describe('GET /users/:id/config', () => {
       realityPublicKey: 'public-key',
       serverName: 'sni.example.com',
       dest: 'example.com:443',
+      fingerprint: 'chrome',
       shortIds: ['abcd1234', 'deadbeef'],
     });
 
@@ -81,6 +82,7 @@ describe('GET /users/:id/config', () => {
       reality: {
         publicKey: 'public-key',
         serverName: 'sni.example.com',
+        fingerprint: 'chrome',
         shortId: 'abcd1234',
         dest: 'example.com:443',
       },

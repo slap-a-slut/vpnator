@@ -13,6 +13,7 @@ export class XrayInstanceRepository {
       realityPublicKey: data.realityPublicKey,
       serverName: data.serverName,
       dest: data.dest,
+      fingerprint: data.fingerprint,
       shortIds: data.shortIds,
     };
 
@@ -35,6 +36,7 @@ export class XrayInstanceRepository {
       ...(data.realityPublicKey !== undefined ? { realityPublicKey: data.realityPublicKey } : {}),
       ...(data.serverName !== undefined ? { serverName: data.serverName } : {}),
       ...(data.dest !== undefined ? { dest: data.dest } : {}),
+      ...(data.fingerprint !== undefined ? { fingerprint: data.fingerprint } : {}),
       ...(data.shortIds !== undefined ? { shortIds: data.shortIds } : {}),
     };
 

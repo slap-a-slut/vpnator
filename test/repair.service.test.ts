@@ -74,6 +74,7 @@ async function createServerContext(params: {
       realityPublicKey: 'public-key',
       serverName: 'sni.repair.example.com',
       dest: 'example.com:443',
+      fingerprint: 'chrome',
       shortIds: ['deadbeef'],
     });
   }

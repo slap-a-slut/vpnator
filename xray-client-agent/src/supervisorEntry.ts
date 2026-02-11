@@ -11,6 +11,7 @@ interface ParsedArgs {
   backoff: number[];
   host: string;
   port: number;
+  healthMode: 'proxy' | 'vpn';
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -32,6 +33,8 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   const maxRestarts = toNumber(required(values, 'max-restarts'), 'max-restarts');
   const host = values.get('host') ?? '127.0.0.1';
   const port = toNumber(values.get('port') ?? '1080', 'port');
+  const rawHealthMode = (values.get('health-mode') ?? 'proxy').toLowerCase();
+  const healthMode = rawHealthMode === 'vpn' ? 'vpn' : 'proxy';
 
   const backoff =
     values
@@ -51,6 +54,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     backoff,
     host,
     port,
+    healthMode,
   };
 }
 
@@ -67,6 +71,7 @@ async function main(): Promise<void> {
     backoffMs: args.backoff,
     host: args.host,
     port: args.port,
+    healthMode: args.healthMode,
   });
 }
 

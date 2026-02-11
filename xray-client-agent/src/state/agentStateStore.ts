@@ -20,6 +20,7 @@ export class AgentStateStore {
       ...(parsed.process ? { process: parsed.process } : {}),
       ...(parsed.supervisor ? { supervisor: parsed.supervisor } : {}),
       ...(parsed.proxy ? { proxy: parsed.proxy } : {}),
+      ...(parsed.mode === 'proxy' || parsed.mode === 'vpn' ? { mode: parsed.mode } : {}),
       ...(parsed.lastError ? { lastError: parsed.lastError } : {}),
       updatedAt:
         typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
@@ -33,6 +34,7 @@ export class AgentStateStore {
       ...(next.process ? { process: next.process } : {}),
       ...(next.supervisor ? { supervisor: next.supervisor } : {}),
       ...(next.proxy ? { proxy: next.proxy } : {}),
+      ...(next.mode ? { mode: next.mode } : {}),
       ...(next.lastError ? { lastError: next.lastError } : {}),
       updatedAt: next.updatedAt,
     };

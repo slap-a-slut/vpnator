@@ -37,6 +37,7 @@ describe('runReconnectLoop', () => {
       onExit,
       onFailure,
       sleepFn,
+      startupFailureReason: 'STARTUP_FAILED: test',
     });
 
     expect(startInstance).toHaveBeenCalledTimes(4);
@@ -69,6 +70,7 @@ describe('runReconnectLoop', () => {
       onExit,
       onFailure,
       sleepFn,
+      startupFailureReason: 'STARTUP_FAILED: test',
     });
 
     expect(first.stopMock).toHaveBeenCalledTimes(1);

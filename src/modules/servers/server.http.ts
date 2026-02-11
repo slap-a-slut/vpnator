@@ -2,6 +2,9 @@ import type { Server, XrayInstance } from '@prisma/client';
 import { SecretType, ServerStatus } from '@prisma/client';
 import { z } from 'zod';
 
+const hostnameRegex = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
+const shortIdRegex = /^[0-9a-fA-F]{8,32}$/;
+
 export const createServerBodySchema = z
   .object({
     host: z.string().min(1),
@@ -41,6 +44,7 @@ export const xrayInstanceMetaSchema = z
     realityPublicKey: z.string().min(1),
     serverName: z.string().min(1),
     dest: z.string().min(1),
+    fingerprint: z.string().min(1),
     shortIds: z.array(z.string().min(1)),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -48,6 +52,35 @@ export const xrayInstanceMetaSchema = z
   .strict();
 
 export type XrayInstanceMeta = z.infer<typeof xrayInstanceMetaSchema>;
+
+export const xrayDisguiseFingerprintSchema = z.enum([
+  'chrome',
+  'firefox',
+  'safari',
+  'edge',
+  'ios',
+  'android',
+]);
+
+export const patchServerDisguiseBodySchema = z
+  .object({
+    serverName: z.string().min(3).max(253).regex(hostnameRegex),
+    dest: z.string().min(1).max(255).optional(),
+    fingerprint: xrayDisguiseFingerprintSchema.default('chrome'),
+    shortIds: z.array(z.string().regex(shortIdRegex)).min(1).max(16).optional(),
+  })
+  .strict();
+
+export type PatchServerDisguiseBody = z.infer<typeof patchServerDisguiseBodySchema>;
+
+export const serverDisguiseUpdateResponseSchema = z
+  .object({
+    jobId: z.string().uuid(),
+    xrayInstance: xrayInstanceMetaSchema,
+  })
+  .strict();
+
+export type ServerDisguiseUpdateResponse = z.infer<typeof serverDisguiseUpdateResponseSchema>;
 
 export const serverStatusResponseSchema = z
   .object({
@@ -170,6 +203,7 @@ export const xrayInstanceMetaJsonSchema = {
     'realityPublicKey',
     'serverName',
     'dest',
+    'fingerprint',
     'shortIds',
     'createdAt',
     'updatedAt',
@@ -181,6 +215,7 @@ export const xrayInstanceMetaJsonSchema = {
     realityPublicKey: { type: 'string' },
     serverName: { type: 'string' },
     dest: { type: 'string' },
+    fingerprint: { type: 'string' },
     shortIds: {
       type: 'array',
       items: { type: 'string' },
@@ -200,6 +235,49 @@ export const serverStatusResponseJsonSchema = {
     xrayInstance: {
       anyOf: [xrayInstanceMetaJsonSchema, { type: 'null' }],
     },
+  },
+} as const;
+
+export const patchServerDisguiseBodyJsonSchema = {
+  type: 'object',
+  required: ['serverName'],
+  additionalProperties: false,
+  properties: {
+    serverName: {
+      type: 'string',
+      minLength: 3,
+      maxLength: 253,
+      pattern: hostnameRegex.source,
+    },
+    dest: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255,
+    },
+    fingerprint: {
+      type: 'string',
+      enum: ['chrome', 'firefox', 'safari', 'edge', 'ios', 'android'],
+      default: 'chrome',
+    },
+    shortIds: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 16,
+      items: {
+        type: 'string',
+        pattern: shortIdRegex.source,
+      },
+    },
+  },
+} as const;
+
+export const serverDisguiseUpdateResponseJsonSchema = {
+  type: 'object',
+  required: ['jobId', 'xrayInstance'],
+  additionalProperties: false,
+  properties: {
+    jobId: { type: 'string', format: 'uuid' },
+    xrayInstance: xrayInstanceMetaJsonSchema,
   },
 } as const;
 
@@ -281,6 +359,7 @@ function toXrayInstanceMeta(xrayInstance: XrayInstance): XrayInstanceMeta {
     realityPublicKey: xrayInstance.realityPublicKey,
     serverName: xrayInstance.serverName,
     dest: xrayInstance.dest,
+    fingerprint: xrayInstance.fingerprint,
     shortIds: xrayInstance.shortIds,
     createdAt: xrayInstance.createdAt.toISOString(),
     updatedAt: xrayInstance.updatedAt.toISOString(),
@@ -296,6 +375,16 @@ export function toServerStatusResponse(input: {
     status: input.status,
     lastError: input.lastError ?? null,
     xrayInstance: input.xrayInstance ? toXrayInstanceMeta(input.xrayInstance) : null,
+  });
+}
+
+export function toServerDisguiseUpdateResponse(input: {
+  jobId: string;
+  xrayInstance: XrayInstance;
+}): ServerDisguiseUpdateResponse {
+  return serverDisguiseUpdateResponseSchema.parse({
+    jobId: input.jobId,
+    xrayInstance: toXrayInstanceMeta(input.xrayInstance),
   });
 }
 

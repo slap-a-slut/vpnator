@@ -7,7 +7,7 @@ import { AppError } from './errors';
 function isPublicRoute(request: FastifyRequest): boolean {
   if (request.method !== 'GET') return false;
   const path = request.url.split('?')[0] ?? request.url;
-  return path === '/health' || path === '/version';
+  return path === '/health' || path === '/version' || path.startsWith('/share/');
 }
 
 function extractBearerToken(authorizationHeader: string): string | null {

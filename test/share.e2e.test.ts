@@ -70,6 +70,7 @@ describe('Share token API', () => {
       realityPublicKey: 'public_key',
       serverName: 'cdn.example.com',
       dest: 'example.com:443',
+      fingerprint: 'chrome',
       shortIds: ['abcd1234'],
       createdAt: new Date(),
       updatedAt: new Date(),

@@ -22,7 +22,10 @@ import { UserRepository } from '../users/user.repository';
 import {
   createServerBodyJsonSchema,
   createServerBodySchema,
+  patchServerDisguiseBodyJsonSchema,
+  patchServerDisguiseBodySchema,
   serverListResponseJsonSchema,
+  serverDisguiseUpdateResponseJsonSchema,
   serverLogsQueryJsonSchema,
   serverLogsQuerySchema,
   serverLogsResponseJsonSchema,
@@ -32,6 +35,7 @@ import {
   serverStatusResponseJsonSchema,
   toServerHealthResponse,
   toServerLogsResponse,
+  toServerDisguiseUpdateResponse,
   toServerResponse,
   toServerStatusResponse,
 } from './server.http';
@@ -176,6 +180,83 @@ export function serversModule(app: FastifyInstance) {
     async () => {
       const servers = await serverRepository.findMany();
       return servers.map(toServerResponse);
+    },
+  );
+
+  app.patch(
+    '/:id/xray-disguise',
+    {
+      schema: {
+        tags: ['servers', 'xray'],
+        summary: 'Update XRAY REALITY disguise parameters',
+        params: serverParamsJsonSchema,
+        body: patchServerDisguiseBodyJsonSchema,
+        response: {
+          202: serverDisguiseUpdateResponseJsonSchema,
+          400: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+          500: errorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = getActorIdFromRequest(request);
+      const { id: serverId } = parseOrThrow(serverIdParamsSchema, request.params);
+      const body = parseOrThrow(patchServerDisguiseBodySchema, request.body);
+
+      const server = await serverRepository.findById(serverId);
+      if (!server) {
+        throw new AppError({
+          code: 'SERVER_NOT_FOUND',
+          statusCode: 404,
+          message: 'Server not found',
+          details: { id: serverId },
+        });
+      }
+
+      const xrayInstance = await xrayInstanceRepository.findLatestByServerId(serverId);
+      if (!xrayInstance) {
+        throw new AppError({
+          code: 'NOT_READY',
+          statusCode: 409,
+          message: 'Server has no xray instance yet',
+          details: { serverId },
+        });
+      }
+
+      const normalizedServerName = body.serverName.trim().toLowerCase();
+      const resolvedDest = normalizeDisguiseDest(body.dest, normalizedServerName);
+      const shortIds = body.shortIds ?? xrayInstance.shortIds;
+
+      const updatedXrayInstance = await xrayInstanceRepository.updateById(xrayInstance.id, {
+        serverName: normalizedServerName,
+        dest: resolvedDest,
+        fingerprint: body.fingerprint,
+        shortIds,
+      });
+
+      const job = await app.jobsRegistry.enqueueRepair(serverId);
+
+      await auditEventRepository.create({
+        actor,
+        action: 'XRAY_DISGUISE_UPDATE',
+        entityType: 'SERVER',
+        entityId: serverId,
+        meta: {
+          jobId: job.jobId,
+          serverName: normalizedServerName,
+          dest: resolvedDest,
+          fingerprint: body.fingerprint,
+          shortIds,
+        },
+      });
+
+      const responseBody = toServerDisguiseUpdateResponse({
+        jobId: job.jobId,
+        xrayInstance: updatedXrayInstance,
+      });
+      void reply.status(202).send(responseBody);
     },
   );
 
@@ -446,4 +527,39 @@ export function serversModule(app: FastifyInstance) {
       void reply.status(202).send(responseBody);
     },
   );
+}
+
+function normalizeDisguiseDest(dest: string | undefined, serverName: string): string {
+  const resolved = (dest ?? `${serverName}:443`).trim().toLowerCase();
+  const separator = resolved.lastIndexOf(':');
+  if (separator <= 0 || separator === resolved.length - 1) {
+    throw new AppError({
+      code: 'INVALID_DISGUISE',
+      statusCode: 400,
+      message: 'dest must be in format host:port',
+      details: { dest: resolved },
+    });
+  }
+
+  const host = resolved.slice(0, separator);
+  const port = Number.parseInt(resolved.slice(separator + 1), 10);
+  if (!Number.isInteger(port) || port !== 443) {
+    throw new AppError({
+      code: 'INVALID_DISGUISE',
+      statusCode: 400,
+      message: 'dest port must be 443',
+      details: { dest: resolved, port: Number.isInteger(port) ? port : null },
+    });
+  }
+
+  if (host !== serverName) {
+    throw new AppError({
+      code: 'INVALID_DISGUISE',
+      statusCode: 400,
+      message: 'dest host must match serverName',
+      details: { serverName, destHost: host },
+    });
+  }
+
+  return `${host}:${port}`;
 }

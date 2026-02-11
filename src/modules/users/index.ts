@@ -103,6 +103,7 @@ export function usersModule(app: FastifyInstance) {
         host: server.host,
         port: xrayInstance.listenPort,
         serverName: xrayInstance.serverName,
+        fingerprint: xrayInstance.fingerprint,
         publicKey: xrayInstance.realityPublicKey,
         shortId,
       });
@@ -116,6 +117,7 @@ export function usersModule(app: FastifyInstance) {
         reality: {
           publicKey: xrayInstance.realityPublicKey,
           serverName: xrayInstance.serverName,
+          fingerprint: xrayInstance.fingerprint,
           shortId,
           dest: xrayInstance.dest,
         },

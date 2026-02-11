@@ -2,7 +2,9 @@ export type AgentErrorCode =
   | 'XRAY_DOWNLOAD_FAILED'
   | 'XRAY_HASH_MISMATCH'
   | 'XRAY_UNSUPPORTED_PLATFORM'
-  | 'STARTUP_FAILED';
+  | 'STARTUP_FAILED'
+  | 'VPN_UNSUPPORTED_PLATFORM'
+  | 'ELEVATION_REQUIRED';
 
 export class AgentError extends Error {
   public readonly code: AgentErrorCode;

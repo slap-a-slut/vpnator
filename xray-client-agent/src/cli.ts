@@ -15,7 +15,7 @@ import { createProxyManager } from './proxy/managerFactory';
 import { importShareToken } from './services/importService';
 import { AgentStateStore } from './state/agentStateStore';
 import { tailLines } from './util/tail';
-import { buildXrayConfigFromVlessLink } from './xray/configBuilder';
+import { buildXrayConfigFromVlessLink, type ConnectionMode } from './xray/configBuilder';
 import { XrayProcessManager } from './xray/processManager';
 import { runSupervisorProcess } from './xray/supervisor';
 
@@ -39,6 +39,7 @@ interface SupervisorArgs {
   backoff: string;
   host: string;
   port: number;
+  'health-mode': ConnectionMode;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -107,8 +108,16 @@ async function main(): Promise<void> {
       return;
     }
 
+    const mode: ConnectionMode = state.mode ?? 'proxy';
+    if (mode === 'vpn' && process.platform !== 'darwin') {
+      throw new AgentError({
+        code: 'VPN_UNSUPPORTED_PLATFORM',
+        message: 'VPN mode is currently supported only on macOS',
+      });
+    }
+    ensureVpnPrivileges(mode);
     const binary = await binaryManager.ensureBinary();
-    const xrayConfig = buildXrayConfigFromVlessLink(state.imported.vlessLink);
+    const xrayConfig = buildXrayConfigFromVlessLink(state.imported.vlessLink, { mode });
     await writeFile(paths.xrayConfigFile, `${JSON.stringify(xrayConfig, null, 2)}\n`, 'utf8');
     if (process.platform !== 'win32') {
       await chmod(paths.xrayConfigFile, 0o600);
@@ -145,6 +154,8 @@ async function main(): Promise<void> {
         '127.0.0.1',
         '--port',
         '1080',
+        '--health-mode',
+        mode,
       ],
       {
         detached: true,
@@ -183,6 +194,7 @@ async function main(): Promise<void> {
         processManager,
         supervisorPid,
         timeoutMs: 10_000,
+        mode,
       });
     } catch (error) {
       if (processManager.isRunning(supervisorPid)) {
@@ -207,7 +219,7 @@ async function main(): Promise<void> {
     const pid = connectedState.process?.pid ?? null;
     logger.info({ pid, supervisorPid }, 'xray supervisor started');
     console.log(
-      `Connected. xray-core is running (pid=${pid ?? 'unknown'}). SOCKS5: 127.0.0.1:1080`,
+      `Connected (${mode}). xray-core is running (pid=${pid ?? 'unknown'}). SOCKS5: 127.0.0.1:1080`,
     );
   }
 
@@ -257,6 +269,7 @@ async function main(): Promise<void> {
       lastError: state.lastError ?? null,
       imported: Boolean(state.imported),
       proxyEnabled: state.proxy?.enabled ?? false,
+      mode: state.mode ?? 'proxy',
     };
 
     console.log(JSON.stringify(payload, null, 2));
@@ -339,20 +352,38 @@ async function main(): Promise<void> {
     }
   }
 
+  async function commandMode(setMode: ConnectionMode): Promise<void> {
+    if (setMode === 'vpn' && process.platform !== 'darwin') {
+      throw new AgentError({
+        code: 'VPN_UNSUPPORTED_PLATFORM',
+        message: 'VPN mode is currently supported only on macOS',
+      });
+    }
+
+    await stateStore.update((state) => ({
+      ...state,
+      mode: setMode,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    console.log(`Mode set to ${setMode}`);
+  }
+
   async function commandRunSupervisor(argv: SupervisorArgs): Promise<void> {
     const backoff = parseBackoff(argv.backoff);
 
-    await runSupervisorProcess({
-      binary: argv.binary,
-      configPath: argv.config,
-      stateFilePath: argv['state-file'],
-      xrayLogPath: argv['xray-log'],
-      startupTimeoutMs: argv['startup-timeout'],
-      maxRestarts: argv['max-restarts'],
-      backoffMs: backoff,
-      host: argv.host,
-      port: argv.port,
-    });
+      await runSupervisorProcess({
+        binary: argv.binary,
+        configPath: argv.config,
+        stateFilePath: argv['state-file'],
+        xrayLogPath: argv['xray-log'],
+        startupTimeoutMs: argv['startup-timeout'],
+        maxRestarts: argv['max-restarts'],
+        backoffMs: backoff,
+        host: argv.host,
+        port: argv.port,
+        healthMode: argv['health-mode'],
+      });
   }
 
   await yargs(hideBin(process.argv))
@@ -376,6 +407,25 @@ async function main(): Promise<void> {
       async (argv) => {
         try {
           await commandImport(argv.token, argv['base-url']);
+        } catch (error) {
+          await recordError(error);
+          throw error;
+        }
+      },
+    )
+    .command(
+      'mode',
+      'Set connection mode',
+      (builder) =>
+        builder.option('set', {
+          type: 'string',
+          choices: ['proxy', 'vpn'] as const,
+          demandOption: true,
+          describe: 'Connection mode',
+        }),
+      async (argv) => {
+        try {
+          await commandMode(argv.set);
         } catch (error) {
           await recordError(error);
           throw error;
@@ -485,7 +535,12 @@ async function main(): Promise<void> {
           .option('max-restarts', { type: 'number', demandOption: true })
           .option('backoff', { type: 'string', demandOption: true })
           .option('host', { type: 'string', demandOption: true })
-          .option('port', { type: 'number', demandOption: true }),
+          .option('port', { type: 'number', demandOption: true })
+          .option('health-mode', {
+            type: 'string',
+            choices: ['proxy', 'vpn'] as const,
+            demandOption: true,
+          }),
       async (argv) => {
         await commandRunSupervisor(argv);
       },
@@ -515,6 +570,7 @@ async function waitForHealthyStartup(params: {
   processManager: XrayProcessManager;
   supervisorPid: number;
   timeoutMs: number;
+  mode: ConnectionMode;
 }): Promise<void> {
   const deadline = Date.now() + params.timeoutMs;
 
@@ -545,7 +601,23 @@ async function waitForHealthyStartup(params: {
 
   throw new AgentError({
     code: 'STARTUP_FAILED',
-    message: 'SOCKS port 127.0.0.1:1080 was not ready within 10s',
+    message:
+      params.mode === 'vpn'
+        ? 'VPN tunnel route was not ready within 10s'
+        : 'SOCKS port 127.0.0.1:1080 was not ready within 10s',
+  });
+}
+
+function ensureVpnPrivileges(mode: ConnectionMode): void {
+  if (mode !== 'vpn') return;
+  if (process.platform !== 'darwin') return;
+  if (typeof process.getuid !== 'function') return;
+  if (process.getuid() === 0) return;
+
+  throw new AgentError({
+    code: 'ELEVATION_REQUIRED',
+    message:
+      'VPN mode on macOS requires elevated privileges for TUN setup. Run with sudo or use proxy mode.',
   });
 }
 

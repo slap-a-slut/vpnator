@@ -17,11 +17,33 @@
       <label for="shareToken">Share Token</label>
       <input id="shareToken" type="text" placeholder="token" />
 
+      <label for="modeSelect">Connection Mode</label>
+      <select id="modeSelect">
+        <option value="proxy">proxy</option>
+        <option value="vpn">vpn</option>
+      </select>
+
       <div class="actions">
         <button id="importBtn" type="button">Import</button>
         <button id="connectBtn" type="button">Connect</button>
         <button id="disconnectBtn" type="button">Disconnect</button>
       </div>
+
+      <section>
+        <h2>Disguise</h2>
+        <p id="disguiseLine">Disguised as traffic from -</p>
+        <label for="disguisePreset">Preset</label>
+        <select id="disguisePreset">
+          <option value="vk.com">vk.com</option>
+          <option value="google.com">google.com</option>
+          <option value="cloudflare.com">cloudflare.com</option>
+          <option value="custom">custom</option>
+        </select>
+        <input id="disguiseCustom" type="text" placeholder="custom domain (example.com)" />
+        <label for="adminApiKey">Admin API Key (required to apply)</label>
+        <input id="adminApiKey" type="password" placeholder="admin api key" />
+        <button id="applyDisguiseBtn" type="button">Apply disguise</button>
+      </section>
 
       <section>
         <h2>Status</h2>

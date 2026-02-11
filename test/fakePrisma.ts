@@ -48,6 +48,7 @@ interface XrayInstanceRow {
   realityPublicKey: string;
   serverName: string;
   dest: string;
+  fingerprint: string;
   shortIds: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -219,6 +220,7 @@ interface XrayInstanceCreateInput {
   realityPublicKey: string;
   serverName: string;
   dest: string;
+  fingerprint?: string;
   shortIds: string[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -250,6 +252,7 @@ interface XrayInstanceUpdateInput {
   realityPublicKey?: string;
   serverName?: string;
   dest?: string;
+  fingerprint?: string;
   shortIds?: string[];
 }
 
@@ -562,6 +565,7 @@ export function createFakePrisma() {
           realityPublicKey: input.realityPublicKey,
           serverName: input.serverName,
           dest: input.dest,
+          fingerprint: input.fingerprint ?? 'chrome',
           shortIds: [...input.shortIds],
           createdAt: input.createdAt ?? now,
           updatedAt: input.updatedAt ?? now,
@@ -619,6 +623,7 @@ export function createFakePrisma() {
         if (input.realityPublicKey !== undefined) existing.realityPublicKey = input.realityPublicKey;
         if (input.serverName !== undefined) existing.serverName = input.serverName;
         if (input.dest !== undefined) existing.dest = input.dest;
+        if (input.fingerprint !== undefined) existing.fingerprint = input.fingerprint;
         if (input.shortIds !== undefined) existing.shortIds = [...input.shortIds];
 
         existing.updatedAt = new Date();

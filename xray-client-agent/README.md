@@ -51,12 +51,25 @@ agent connect
 - Если бинарник отсутствует, пытается взять его из локальных assets, затем скачать по `XRAY_CORE_BASE_URL`
 - Проверяет SHA-256 через `XRAY_CORE_SHA256_<platform>`
 - На Unix выставляет `chmod +x`
-- Генерирует локальный `config.json`
+- Генерирует локальный `config.json` по выбранному mode (`proxy|vpn`)
 - Поднимает `xray-core` через supervisor-процесс
-- После старта проверяет, что SOCKS5 порт `127.0.0.1:1080` слушается (таймаут 10 сек)
+- В `proxy` mode после старта проверяет, что SOCKS5 порт `127.0.0.1:1080` слушается (таймаут 10 сек)
+- В `vpn` mode (macOS) проверяет, что default route переключен на `utun*` (таймаут 10 сек)
 - Если health-check не прошел, процесс останавливается и возвращается `STARTUP_FAILED`
 - При падении `xray-core` выполняет до 3 автоматических рестартов с backoff `1s, 2s, 4s`
-- MVP режим: локальный SOCKS5 на `127.0.0.1:1080`
+- `proxy` mode: локальный SOCKS5 на `127.0.0.1:1080`
+- `vpn` mode: TUN inbound в XRay (macOS-only)
+
+### Mode
+
+```bash
+agent mode --set proxy
+agent mode --set vpn
+```
+
+- По умолчанию используется `proxy`
+- `vpn` сейчас поддерживается только на macOS
+- Для `vpn` mode могут потребоваться повышенные права (TUN/route)
 
 Ожидаемые имена файлов в `XRAY_CORE_BASE_URL`:
 
@@ -92,6 +105,7 @@ agent status
 - `supervisorPid`
 - `lastError`
 - состояние импорта и proxy
+- текущий `mode` (`proxy|vpn`)
 
 ### Logs
 
@@ -151,6 +165,7 @@ agent proxy-off
 agent import --token abc123 --base-url https://cp.example.com
 agent connect
 agent status
+agent mode --set vpn
 agent proxy-on
 agent logs --tail 100 --source all
 agent proxy-off

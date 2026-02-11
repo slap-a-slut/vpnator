@@ -42,6 +42,14 @@ describe('API key auth', () => {
     expect(body.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
   });
 
+  it('allows GET /share/:token without auth', async () => {
+    const app = await appPromise;
+    const response = await request(app.server).get('/share/invalid-token').expect(404);
+    expect(response.body).toMatchObject({
+      code: 'TOKEN_INVALID',
+    });
+  });
+
   it('rejects non-health endpoint without auth', async () => {
     const app = await appPromise;
 

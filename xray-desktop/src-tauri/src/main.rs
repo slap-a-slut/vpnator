@@ -72,8 +72,33 @@ fn connect() -> Result<Value, String> {
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
+fn setMode(mode: String) -> Result<Value, String> {
+  run_bridge("setMode", json!({ "mode": mode }))
+}
+
+#[tauri::command]
 fn disconnect() -> Result<(), String> {
   run_bridge("disconnect", Value::Null).map(|_| ())
+}
+
+#[allow(non_snake_case)]
+#[tauri::command]
+fn updateDisguise(
+  baseUrl: String,
+  serverId: String,
+  adminApiKey: String,
+  disguise: Value,
+) -> Result<Value, String> {
+  run_bridge(
+    "updateDisguise",
+    json!({
+      "baseUrl": baseUrl,
+      "serverId": serverId,
+      "adminApiKey": adminApiKey,
+      "disguise": disguise
+    }),
+  )
 }
 
 #[tauri::command]
@@ -92,7 +117,14 @@ fn main() {
       Ok(())
     })
     .plugin(tauri_plugin_deep_link::init())
-    .invoke_handler(tauri::generate_handler![importToken, connect, disconnect, status])
+    .invoke_handler(tauri::generate_handler![
+      importToken,
+      connect,
+      setMode,
+      updateDisguise,
+      disconnect,
+      status
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

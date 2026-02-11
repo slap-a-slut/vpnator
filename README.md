@@ -57,7 +57,7 @@ Swagger UI (если `SWAGGER_ENABLED=true`):
 
 ## Security baseline
 
-- Все эндпоинты, кроме `GET /health` и `GET /version`, требуют `Authorization: Bearer <api-key>`
+- Все эндпоинты, кроме `GET /health`, `GET /version` и `GET /share/:token`, требуют `Authorization: Bearer <api-key>`
 - При отсутствии/невалидном ключе возвращается ошибка: `{ code: "UNAUTHORIZED", message, details }`
 - Для audit используется masked actor id: `adminKey:<first6>`
 - Глобальный rate limit: `120 req/min` по IP
@@ -89,6 +89,7 @@ docker push your-registry/xray-control-plane:v${VERSION}
 - `POST /servers/:id/ssh-test` — проверка SSH-доступа к серверу (`uname -a`, `id`)
 - `POST /servers/:id/install` — ставит задачу установки XRAY, ответ: `{ jobId }`
 - `POST /servers/:id/repair` — ставит задачу диагностики/ремонта, ответ: `{ jobId }`
+- `PATCH /servers/:id/xray-disguise` — обновляет REALITY disguise (`serverName`, `dest`, `fingerprint`, `shortIds`) и ставит job repair
 - `GET /servers/:id/status` — статус установки + метаданные `xrayInstance`
 - `GET /servers/:id/logs?type=install|xray&tail=200` — observability логи
 - `GET /servers/:id/health` — runtime health-checks (ssh/docker/container/port)
@@ -154,6 +155,16 @@ docker push your-registry/xray-control-plane:v${VERSION}
 - `grpc`: `XrayGrpcApiStore` — add/remove пользователей через `xray api` без рестарта
 - `POST /servers/:id/users` вызывает `addUser`
 - `PATCH /users/:id` с `enabled=false` вызывает `removeUser`
+
+### Share and client config
+
+- `POST /users/:id/share` создает одноразовый share-token
+- `GET /share/:token` — публичный endpoint consume токена (без auth), возвращает payload для клиента
+- Share payload включает:
+  - `server.host`, `server.port`
+  - `reality.publicKey`, `reality.serverName`, `reality.fingerprint`, `reality.shortId`, `reality.dest`
+  - `user.uuid`
+- `GET /users/:id/config` возвращает VLESS+REALITY ссылку с `fp=<fingerprint>`
 
 #### `grpc` режим
 

@@ -17,6 +17,7 @@ import { renderXrayConfig, renderXrayDockerCompose } from './xray.template';
 
 const DEFAULT_LISTEN_PORT = 443;
 const DEFAULT_DEST = 'example.com:443';
+const DEFAULT_FINGERPRINT = 'chrome';
 const SUPPORTED_OS_IDS = new Set(['ubuntu', 'debian']);
 
 interface CommandExecutor {
@@ -39,6 +40,7 @@ interface RepairRuntimeConfig {
   realityPublicKey: string;
   serverName: string;
   dest: string;
+  fingerprint: string;
   shortIds: string[];
 }
 
@@ -203,6 +205,7 @@ export class RepairService {
         realityPublicKey: runtimeConfig.realityPublicKey,
         serverName: runtimeConfig.serverName,
         dest: runtimeConfig.dest,
+        fingerprint: runtimeConfig.fingerprint,
         shortIds: runtimeConfig.shortIds,
       });
 
@@ -257,6 +260,7 @@ export class RepairService {
         realityPublicKey: existing.realityPublicKey,
         serverName: existing.serverName,
         dest: existing.dest,
+        fingerprint: existing.fingerprint,
         shortIds: existing.shortIds,
       };
     }
@@ -271,6 +275,7 @@ export class RepairService {
       realityPublicKey: keyPair.publicKey,
       serverName: server.host,
       dest: DEFAULT_DEST,
+      fingerprint: DEFAULT_FINGERPRINT,
       shortIds,
     });
   }

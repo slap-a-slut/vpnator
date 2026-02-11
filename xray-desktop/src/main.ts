@@ -11,7 +11,23 @@ interface AgentStatus {
   supervisorPid: number | null;
   lastError: string | null;
   imported: boolean;
+  importedConfig: {
+    baseUrl: string;
+    serverId: string;
+    server: {
+      host: string;
+      port: number;
+    };
+    reality: {
+      publicKey: string;
+      serverName: string;
+      fingerprint: string;
+      shortId: string;
+      dest: string;
+    };
+  } | null;
   proxyEnabled: boolean;
+  mode: 'proxy' | 'vpn';
   logsPath: string;
   agentLogPath: string;
   xrayLogPath: string;
@@ -31,6 +47,12 @@ const connectBtn = must<HTMLButtonElement>('connectBtn');
 const disconnectBtn = must<HTMLButtonElement>('disconnectBtn');
 const copyLogsPathBtn = must<HTMLButtonElement>('copyLogsPathBtn');
 const appVersionLabel = must<HTMLParagraphElement>('appVersion');
+const modeSelect = must<HTMLSelectElement>('modeSelect');
+const disguiseLine = must<HTMLParagraphElement>('disguiseLine');
+const disguisePreset = must<HTMLSelectElement>('disguisePreset');
+const disguiseCustom = must<HTMLInputElement>('disguiseCustom');
+const adminApiKeyInput = must<HTMLInputElement>('adminApiKey');
+const applyDisguiseBtn = must<HTMLButtonElement>('applyDisguiseBtn');
 
 let latestStatus: AgentStatus | null = null;
 
@@ -46,6 +68,11 @@ function setMessage(text: string): void {
 
 function renderStatus(status: AgentStatus): void {
   latestStatus = status;
+  modeSelect.value = status.mode;
+  disguiseLine.textContent = status.importedConfig
+    ? `Disguised as traffic from ${status.importedConfig.reality.serverName}`
+    : 'Disguised as traffic from -';
+
   statusBox.textContent = JSON.stringify(
     {
       state: status.connected ? 'Connected' : 'Disconnected',
@@ -53,6 +80,7 @@ function renderStatus(status: AgentStatus): void {
       pid: status.pid,
       supervisorPid: status.supervisorPid,
       imported: status.imported,
+      mode: status.mode,
       logsPath: status.logsPath,
     },
     null,
@@ -87,6 +115,11 @@ function setDisabled(value: boolean): void {
   connectBtn.disabled = value;
   disconnectBtn.disabled = value;
   copyLogsPathBtn.disabled = value;
+  modeSelect.disabled = value;
+  applyDisguiseBtn.disabled = value;
+  disguisePreset.disabled = value;
+  disguiseCustom.disabled = value;
+  adminApiKeyInput.disabled = value;
 }
 
 function parseImportDeepLink(rawUrl: string): DeepLinkImportPayload {
@@ -186,6 +219,61 @@ disconnectBtn.addEventListener('click', async () => {
   });
 });
 
+modeSelect.addEventListener('change', async () => {
+  const mode = modeSelect.value === 'vpn' ? 'vpn' : 'proxy';
+  await withAction(`Set mode ${mode}`, async () => {
+    await invoke('setMode', { mode });
+  });
+});
+
+applyDisguiseBtn.addEventListener('click', async () => {
+  const status = latestStatus;
+  if (!status?.importedConfig) {
+    setMessage('Import config first');
+    return;
+  }
+
+  const serverId = status.importedConfig.serverId;
+  const baseUrl = status.importedConfig.baseUrl;
+  const adminApiKey = adminApiKeyInput.value.trim();
+  if (!adminApiKey) {
+    setMessage('Admin API key is required to apply disguise');
+    return;
+  }
+
+  const presetValue = disguisePreset.value;
+  const domain =
+    presetValue === 'custom' ? disguiseCustom.value.trim().toLowerCase() : presetValue.toLowerCase();
+
+  if (!/^(?=.{1,253}$)(?!-)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(domain)) {
+    setMessage('Invalid domain format');
+    return;
+  }
+
+  await withAction('Apply disguise', async () => {
+    await invoke('updateDisguise', {
+      baseUrl,
+      serverId,
+      adminApiKey,
+      disguise: {
+        serverName: domain,
+        dest: `${domain}:443`,
+        fingerprint: 'chrome',
+      },
+    });
+  });
+
+  setMessage('Disguise update submitted. Reconnect after job completion.');
+});
+
+function syncCustomDisguiseInput(): void {
+  disguiseCustom.disabled = disguisePreset.value !== 'custom';
+}
+
+disguisePreset.addEventListener('change', () => {
+  syncCustomDisguiseInput();
+});
+
 copyLogsPathBtn.addEventListener('click', async () => {
   const path = latestStatus?.logsPath;
   if (!path) {
@@ -202,6 +290,8 @@ copyLogsPathBtn.addEventListener('click', async () => {
 });
 
 async function initialize(): Promise<void> {
+  syncCustomDisguiseInput();
+
   try {
     const appVersion = await getVersion();
     appVersionLabel.textContent = `Version: ${appVersion}`;

@@ -11,7 +11,7 @@ import { AgentError, formatAgentError } from '../errors';
 import { createAgentLogger } from '../logger';
 import { importShareToken } from '../services/importService';
 import { AgentStateStore } from '../state/agentStateStore';
-import { buildXrayConfigFromVlessLink } from '../xray/configBuilder';
+import { buildXrayConfigFromVlessLink, type ConnectionMode } from '../xray/configBuilder';
 import { XrayProcessManager } from '../xray/processManager';
 
 export interface AgentCoreOptions {
@@ -31,7 +31,23 @@ export interface AgentStatus {
   supervisorPid: number | null;
   lastError: string | null;
   imported: boolean;
+  importedConfig: {
+    baseUrl: string;
+    serverId: string;
+    server: {
+      host: string;
+      port: number;
+    };
+    reality: {
+      publicKey: string;
+      serverName: string;
+      fingerprint: string;
+      shortId: string;
+      dest: string;
+    };
+  } | null;
   proxyEnabled: boolean;
+  mode: ConnectionMode;
   logsPath: string;
   agentLogPath: string;
   xrayLogPath: string;
@@ -111,8 +127,17 @@ export class AgentCore {
         return this.status();
       }
 
+      const mode: ConnectionMode = state.mode ?? 'proxy';
+      if (mode === 'vpn' && process.platform !== 'darwin') {
+        throw new AgentError({
+          code: 'VPN_UNSUPPORTED_PLATFORM',
+          message: 'VPN mode is currently supported only on macOS',
+        });
+      }
+      ensureVpnPrivileges(mode);
+
       const binary = await this.binaryManager.ensureBinary();
-      const xrayConfig = buildXrayConfigFromVlessLink(state.imported.vlessLink);
+      const xrayConfig = buildXrayConfigFromVlessLink(state.imported.vlessLink, { mode });
       await writeFile(this.paths.xrayConfigFile, `${JSON.stringify(xrayConfig, null, 2)}\n`, 'utf8');
 
       if (process.platform !== 'win32') {
@@ -141,6 +166,8 @@ export class AgentCore {
           '127.0.0.1',
           '--port',
           '1080',
+          '--health-mode',
+          mode,
         ],
         {
           detached: true,
@@ -174,7 +201,7 @@ export class AgentCore {
       });
 
       try {
-        await this.waitForHealthyStartup(supervisorPid);
+        await this.waitForHealthyStartup(supervisorPid, mode);
       } catch (error) {
         if (this.processManager.isRunning(supervisorPid)) {
           await this.processManager.stop(supervisorPid);
@@ -253,14 +280,48 @@ export class AgentCore {
         supervisorRunning && typeof supervisorPid === 'number' ? supervisorPid : null,
       lastError: state.lastError ?? null,
       imported: Boolean(state.imported),
+      importedConfig: state.imported
+        ? {
+            baseUrl: state.imported.baseUrl,
+            serverId: state.imported.serverId,
+            server: state.imported.server,
+            reality: state.imported.reality,
+          }
+        : null,
       proxyEnabled: state.proxy?.enabled ?? false,
+      mode: state.mode ?? 'proxy',
       logsPath: this.paths.logsDir,
       agentLogPath: this.paths.agentLogFile,
       xrayLogPath: this.paths.xrayLogFile,
     };
   }
 
-  private async waitForHealthyStartup(supervisorPid: number): Promise<void> {
+  public async setMode(mode: ConnectionMode): Promise<AgentStatus> {
+    await this.ensureInitialized();
+
+    if (mode === 'vpn' && process.platform !== 'darwin') {
+      throw new AgentError({
+        code: 'VPN_UNSUPPORTED_PLATFORM',
+        message: 'VPN mode is currently supported only on macOS',
+      });
+    }
+
+    await this.stateStore.update((state) => {
+      const next = {
+        ...state,
+        mode,
+        updatedAt: new Date().toISOString(),
+      };
+      return next;
+    });
+
+    return this.status();
+  }
+
+  private async waitForHealthyStartup(
+    supervisorPid: number,
+    mode: ConnectionMode,
+  ): Promise<void> {
     const deadline = Date.now() + this.startupTimeoutMs;
 
     while (Date.now() < deadline) {
@@ -290,7 +351,10 @@ export class AgentCore {
 
     throw new AgentError({
       code: 'STARTUP_FAILED',
-      message: 'SOCKS port 127.0.0.1:1080 was not ready within 10s',
+      message:
+        mode === 'vpn'
+          ? 'VPN tunnel route was not ready within 10s'
+          : 'SOCKS port 127.0.0.1:1080 was not ready within 10s',
     });
   }
 
@@ -319,4 +383,17 @@ function toErrorMessage(error: unknown): string {
   if (error instanceof AgentError) return formatAgentError(error);
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+function ensureVpnPrivileges(mode: ConnectionMode): void {
+  if (mode !== 'vpn') return;
+  if (process.platform !== 'darwin') return;
+  if (typeof process.getuid !== 'function') return;
+  if (process.getuid() === 0) return;
+
+  throw new AgentError({
+    code: 'ELEVATION_REQUIRED',
+    message:
+      'VPN mode on macOS requires elevated privileges for TUN setup. Run with sudo or use proxy mode.',
+  });
 }

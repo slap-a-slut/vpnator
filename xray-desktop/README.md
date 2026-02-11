@@ -8,11 +8,18 @@
 - IPC команды Tauri:
   - `importToken(baseUrl, token)`
   - `connect()`
+  - `setMode(mode)`
+  - `updateDisguise(baseUrl, serverId, adminApiKey, disguise)`
   - `disconnect()`
   - `status()`
 - Frontend (минимальный):
   - поля `Base URL` и `Share Token`
   - кнопки `Import / Connect / Disconnect`
+  - переключатель mode: `proxy | vpn`
+  - блок disguise:
+    - строка `Disguised as traffic from <domain>`
+    - presets (`vk.com`, `google.com`, `cloudflare.com`) + custom
+    - кнопка Apply (через control-plane API)
   - статус `Connected/Disconnected + lastError`
   - версия приложения (`Version: X.Y.Z`)
   - кнопка `Copy logs path`
@@ -75,6 +82,18 @@ npm run build
 Системные привилегии в оболочке не реализованы.
 Если нужен `proxy-on/proxy-off`, используйте CLI `agent` напрямую.
 На macOS команда может потребовать `sudo`.
+
+## VPN mode (macOS)
+
+- UI поддерживает mode switch `proxy|vpn`
+- `vpn` mode использует TUN-конфиг XRay и рассчитан на macOS
+- если для TUN не хватает прав, connect завершится ошибкой; запустите с повышенными привилегиями или используйте `proxy` mode
+
+## Disguise UI
+
+- Для применения disguise нужен `Admin API key` (Bearer ключ control-plane)
+- UI вызывает `PATCH /servers/:id/xray-disguise`
+- После apply UI предлагает reconnect для применения на клиенте
 
 ## Deep Link Import
 

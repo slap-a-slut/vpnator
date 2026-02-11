@@ -73,6 +73,7 @@ async function createReadyContext() {
     realityPublicKey: 'public-key',
     serverName: server.host,
     dest: 'example.com:443',
+    fingerprint: 'chrome',
     shortIds: ['deadbeef'],
   });
 

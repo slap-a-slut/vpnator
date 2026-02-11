@@ -43,4 +43,18 @@ describe('configBuilder', () => {
       'Unsupported link protocol. Expected vless://',
     );
   });
+
+  it('builds tun config in vpn mode', () => {
+    const link =
+      'vless://11111111-1111-1111-1111-111111111111@example.com:443?security=reality&sni=vk.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd1234&type=tcp#XrayUser';
+
+    const config = buildXrayConfigFromVlessLink(link, { mode: 'vpn' });
+    const tunInbound = config.inbounds.find((item) => item.tag === 'tun-in');
+    expect(tunInbound).toBeDefined();
+    expect(tunInbound?.protocol).toBe('tun');
+
+    const settings = tunInbound?.settings as Record<string, unknown>;
+    expect(settings.autoRoute).toBe(true);
+    expect(settings.strictRoute).toBe(true);
+  });
 });

@@ -46,6 +46,7 @@ const xrayInstanceExportSchema = z
     realityPublicKey: z.string().min(1),
     serverName: z.string().min(1),
     dest: z.string().min(1),
+    fingerprint: z.string().min(1).default('chrome'),
     shortIds: z.array(z.string().min(1)),
     createdAt: isoDateTime,
     updatedAt: isoDateTime,
@@ -193,6 +194,7 @@ export const adminExportResponseJsonSchema = {
               realityPublicKey: { type: 'string' },
               serverName: { type: 'string' },
               dest: { type: 'string' },
+              fingerprint: { type: 'string' },
               shortIds: {
                 type: 'array',
                 items: { type: 'string' },

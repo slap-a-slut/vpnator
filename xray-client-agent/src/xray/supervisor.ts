@@ -6,6 +6,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import { AgentError } from '../errors';
 import { AgentStateStore } from '../state/agentStateStore';
+import { runCommand } from '../util/exec';
 
 export interface ReconnectLoopInstance {
   pid: number;
@@ -23,6 +24,7 @@ export interface ReconnectLoopOptions {
   onExit(reason: string): Promise<void>;
   onFailure(reason: string): Promise<void>;
   sleepFn(ms: number): Promise<void>;
+  startupFailureReason: string;
 }
 
 export async function runReconnectLoop(options: ReconnectLoopOptions): Promise<void> {
@@ -49,7 +51,7 @@ export async function runReconnectLoop(options: ReconnectLoopOptions): Promise<v
     const healthy = await options.healthCheck(instance);
     if (!healthy) {
       await instance.stop();
-      const reason = 'STARTUP_FAILED: SOCKS port 127.0.0.1:1080 was not ready within 10s';
+      const reason = options.startupFailureReason;
       await options.onExit(reason);
       restartAttempts += 1;
 
@@ -92,6 +94,7 @@ interface SupervisorCliArgs {
   backoffMs?: number[];
   host?: string;
   port?: number;
+  healthMode?: 'proxy' | 'vpn';
 }
 
 export async function runSupervisorProcess(args: SupervisorCliArgs): Promise<void> {
@@ -101,6 +104,7 @@ export async function runSupervisorProcess(args: SupervisorCliArgs): Promise<voi
   const backoffMs = args.backoffMs ?? [1_000, 2_000, 4_000];
   const host = args.host ?? '127.0.0.1';
   const port = args.port ?? 1080;
+  const healthMode = args.healthMode ?? 'proxy';
 
   let stopRequested = false;
   let activeChild: ChildProcess | null = null;
@@ -182,7 +186,14 @@ export async function runSupervisorProcess(args: SupervisorCliArgs): Promise<voi
           }),
       });
     },
-    healthCheck: async () => waitForSocksPort(host, port, startupTimeoutMs),
+    startupFailureReason:
+      healthMode === 'vpn'
+        ? 'STARTUP_FAILED: VPN tunnel route was not ready within 10s'
+        : 'STARTUP_FAILED: SOCKS port 127.0.0.1:1080 was not ready within 10s',
+    healthCheck:
+      healthMode === 'vpn'
+        ? async () => waitForVpnRoute(startupTimeoutMs)
+        : async () => waitForSocksPort(host, port, startupTimeoutMs),
     onRunning: async (pid) => {
       await stateStore.update((state) => {
         const next = {
@@ -241,6 +252,21 @@ async function waitForSocksPort(host: string, port: number, timeoutMs: number): 
   while (Date.now() < deadline) {
     const ok = await tryConnect(host, port, 800);
     if (ok) return true;
+    await sleep(250);
+  }
+
+  return false;
+}
+
+async function waitForVpnRoute(timeoutMs: number): Promise<boolean> {
+  if (process.platform !== 'darwin') return false;
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await runCommand('/usr/sbin/route', ['-n', 'get', 'default']);
+    if (result.exitCode === 0 && /\binterface:\s*utun\d+\b/i.test(result.stdout)) {
+      return true;
+    }
     await sleep(250);
   }
 

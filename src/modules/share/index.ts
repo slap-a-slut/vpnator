@@ -2,7 +2,7 @@ import { ServerStatus } from '@prisma/client';
 
 import type { FastifyInstance } from 'fastify';
 
-import { AuditEventRepository, getActorIdFromRequest } from '../audit';
+import { AuditEventRepository } from '../audit';
 import { ServerRepository } from '../servers/server.repository';
 import { buildVlessRealityLink } from '../users/user.http';
 import { XrayInstanceRepository } from '../xray/xrayInstance.repository';
@@ -84,6 +84,12 @@ export function shareModule(app: FastifyInstance) {
   app.get(
     '/share/:token',
     {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
       schema: {
         tags: ['share'],
         summary: 'Consume one-time share token',
@@ -99,7 +105,7 @@ export function shareModule(app: FastifyInstance) {
       },
     },
     async (request) => {
-      const actor = getActorIdFromRequest(request);
+      const actor = request.actorId ?? 'public:share';
       const { token } = parseOrThrow(shareTokenParamsSchema, request.params);
       const tokenHash = hashShareToken(token);
       const now = new Date();
@@ -166,6 +172,7 @@ export function shareModule(app: FastifyInstance) {
         host: server.host,
         port: xrayInstance.listenPort,
         serverName: xrayInstance.serverName,
+        fingerprint: xrayInstance.fingerprint,
         publicKey: xrayInstance.realityPublicKey,
         shortId,
       });
@@ -195,6 +202,20 @@ export function shareModule(app: FastifyInstance) {
         userId: shareToken.userId,
         serverId: shareToken.user.serverId,
         vlessLink,
+        server: {
+          host: server.host,
+          port: xrayInstance.listenPort,
+        },
+        reality: {
+          publicKey: xrayInstance.realityPublicKey,
+          serverName: xrayInstance.serverName,
+          fingerprint: xrayInstance.fingerprint,
+          shortId,
+          dest: xrayInstance.dest,
+        },
+        user: {
+          uuid: shareToken.user.uuid,
+        },
         meta: {
           tokenId: shareToken.id,
           expiresAt: shareToken.expiresAt.toISOString(),

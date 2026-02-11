@@ -15,6 +15,26 @@ export const shareConsumeResponseSchema = z
     userId: z.string().uuid(),
     serverId: z.string().uuid(),
     vlessLink: z.string().startsWith('vless://'),
+    server: z
+      .object({
+        host: z.string().min(1),
+        port: z.coerce.number().int().min(1).max(65535),
+      })
+      .strict(),
+    reality: z
+      .object({
+        publicKey: z.string().min(1),
+        serverName: z.string().min(1),
+        fingerprint: z.string().min(1),
+        shortId: z.string().min(1),
+        dest: z.string().min(1),
+      })
+      .strict(),
+    user: z
+      .object({
+        uuid: z.string().uuid(),
+      })
+      .strict(),
     meta: z
       .object({
         tokenId: z.string().uuid(),
@@ -38,12 +58,41 @@ export const shareTokenParamsJsonSchema = {
 
 export const shareConsumeResponseJsonSchema = {
   type: 'object',
-  required: ['userId', 'serverId', 'vlessLink', 'meta'],
+  required: ['userId', 'serverId', 'vlessLink', 'server', 'reality', 'user', 'meta'],
   additionalProperties: false,
   properties: {
     userId: { type: 'string', format: 'uuid' },
     serverId: { type: 'string', format: 'uuid' },
     vlessLink: { type: 'string', pattern: '^vless://' },
+    server: {
+      type: 'object',
+      required: ['host', 'port'],
+      additionalProperties: false,
+      properties: {
+        host: { type: 'string' },
+        port: { type: 'integer', minimum: 1, maximum: 65535 },
+      },
+    },
+    reality: {
+      type: 'object',
+      required: ['publicKey', 'serverName', 'fingerprint', 'shortId', 'dest'],
+      additionalProperties: false,
+      properties: {
+        publicKey: { type: 'string' },
+        serverName: { type: 'string' },
+        fingerprint: { type: 'string' },
+        shortId: { type: 'string' },
+        dest: { type: 'string' },
+      },
+    },
+    user: {
+      type: 'object',
+      required: ['uuid'],
+      additionalProperties: false,
+      properties: {
+        uuid: { type: 'string', format: 'uuid' },
+      },
+    },
     meta: {
       type: 'object',
       required: ['tokenId', 'expiresAt', 'usedAt'],

@@ -71,6 +71,7 @@ export const userConfigResponseSchema = z
       .object({
         publicKey: z.string().min(1),
         serverName: z.string().min(1),
+        fingerprint: z.string().min(1),
         shortId: z.string().min(1),
         dest: z.string().min(1),
       })
@@ -162,11 +163,12 @@ export const userConfigResponseJsonSchema = {
     },
     reality: {
       type: 'object',
-      required: ['publicKey', 'serverName', 'shortId', 'dest'],
+      required: ['publicKey', 'serverName', 'fingerprint', 'shortId', 'dest'],
       additionalProperties: false,
       properties: {
         publicKey: { type: 'string' },
         serverName: { type: 'string' },
+        fingerprint: { type: 'string' },
         shortId: { type: 'string' },
         dest: { type: 'string' },
       },
@@ -213,6 +215,7 @@ export function toUserConfigResponse(input: {
   reality: {
     publicKey: string;
     serverName: string;
+    fingerprint: string;
     shortId: string;
     dest: string;
   };
@@ -228,13 +231,14 @@ export function buildVlessRealityLink(input: {
   host: string;
   port: number;
   serverName: string;
+  fingerprint: string;
   publicKey: string;
   shortId: string;
 }): string {
   const query = new URLSearchParams({
     security: 'reality',
     sni: input.serverName,
-    fp: 'chrome',
+    fp: input.fingerprint,
     pbk: input.publicKey,
     sid: input.shortId,
     type: 'tcp',
