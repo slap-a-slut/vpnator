@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Sector",
+  "productName": "Sector ADM1N",
   "version": "0.1.0",
-  "identifier": "com.vpnator.xraydesktop",
+  "identifier": "com.vpnator.xraydesktop.admin",
   "build": {
-    "beforeDevCommand": "npm run dev:web:user",
+    "beforeDevCommand": "npm run dev:web:admin",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build:web:user",
+    "beforeBuildCommand": "npm run build:web:admin",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "Sector",
+        "title": "Sector ADM1N",
         "width": 760,
         "height": 560,
         "resizable": true

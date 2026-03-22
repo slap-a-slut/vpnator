@@ -4,18 +4,33 @@
   "private": true,
   "description": "Minimal Tauri shell for xray-client-agent",
   "scripts": {
+    "prepare:runtime": "node ./scripts/prepare-runtime-node.mjs",
     "dev:web": "vite",
+    "dev:web:user": "cross-env VITE_APP_VARIANT=user vite",
+    "dev:web:admin": "cross-env VITE_APP_VARIANT=admin vite",
     "build:web": "vite build",
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "build:web:user": "cross-env VITE_APP_VARIANT=user vite build",
+    "build:web:admin": "cross-env VITE_APP_VARIANT=admin vite build",
+    "dev": "npm run dev:user",
+    "build": "npm run build:user",
+    "dev:user": "npm run prepare:runtime && cross-env VITE_APP_VARIANT=user XRAY_DESKTOP_VARIANT=user tauri dev -c src-tauri/tauri.user.conf.json",
+    "build:user": "npm run prepare:runtime && cross-env VITE_APP_VARIANT=user XRAY_DESKTOP_VARIANT=user tauri build -c src-tauri/tauri.user.conf.json",
+    "dev:admin": "npm run prepare:runtime && cross-env VITE_APP_VARIANT=admin XRAY_DESKTOP_VARIANT=admin tauri dev -c src-tauri/tauri.admin.conf.json",
+    "build:admin": "npm run prepare:runtime && cross-env VITE_APP_VARIANT=admin XRAY_DESKTOP_VARIANT=admin tauri build -c src-tauri/tauri.admin.conf.json",
+    "build:admin:nsis": "npm run prepare:runtime && cross-env VITE_APP_VARIANT=admin XRAY_DESKTOP_VARIANT=admin tauri build --bundles nsis -c src-tauri/tauri.admin.conf.json",
+    "dev:admin:vps": "npm run prepare:runtime && cross-env VITE_CONTROL_PLANE_BASE_URL=https://87-120-186-4.sslip.io VITE_ENABLE_LOCAL_CONTROL_PLANE_BOOTSTRAP=false VITE_APP_VARIANT=admin XRAY_DESKTOP_VARIANT=admin tauri dev -c src-tauri/tauri.admin.conf.json",
+    "build:admin:vps": "npm run prepare:runtime && cross-env VITE_CONTROL_PLANE_BASE_URL=https://87-120-186-4.sslip.io VITE_ENABLE_LOCAL_CONTROL_PLANE_BOOTSTRAP=false VITE_APP_VARIANT=admin XRAY_DESKTOP_VARIANT=admin tauri build -c src-tauri/tauri.admin.conf.json",
+    "build:admin:vps:nsis": "npm run prepare:runtime && cross-env VITE_CONTROL_PLANE_BASE_URL=https://87-120-186-4.sslip.io VITE_ENABLE_LOCAL_CONTROL_PLANE_BOOTSTRAP=false VITE_APP_VARIANT=admin XRAY_DESKTOP_VARIANT=admin tauri build --bundles nsis -c src-tauri/tauri.admin.conf.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-clipboard-manager": "^2.2.1",
     "@tauri-apps/plugin-deep-link": "^2.3.1",
     "xray-client-agent": "file:../xray-client-agent"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.2.0",
+    "cross-env": "^7.0.3",
     "typescript": "^5.9.3",
     "vite": "^7.1.12"
   }

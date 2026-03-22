@@ -1,0 +1,51 @@
+name: Build Windows Admin Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/build-admin-windows-exe
+
+jobs:
+  build-admin-windows:
+    runs-on: windows-latest
+    env:
+      CI: true
+      XRAY_DESKTOP_NODE_VERSION: latest-v20.x
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            xray-client-agent/package-lock.json
+            xray-desktop/package-lock.json
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build xray-client-agent
+        working-directory: xray-client-agent
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install xray-desktop dependencies
+        working-directory: xray-desktop
+        run: npm ci
+
+      - name: Build Windows admin NSIS bundle
+        working-directory: xray-desktop
+        run: npm run build:admin:vps:nsis
+
+      - name: Upload Windows admin exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-admin-windows-nsis
+          path: xray-desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error

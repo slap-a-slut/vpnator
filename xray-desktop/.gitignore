@@ -1,3 +1,5 @@
 node_modules
 dist
 src-tauri/target
+backend/runtime/node.exe
+backend/runtime/node.exe.download
